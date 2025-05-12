@@ -3,6 +3,9 @@
 #include <random>
 #include <chrono>
 #include <cblas.h>
+#include <mkl.h>
+#include <cmath>
+#include <algorithm>
 
 // Генерация случайной матрицы
 std::vector<std::vector<double>> generate_random_matrix(int n)
@@ -62,7 +65,7 @@ std::vector<std::vector<double>> multiply_matrices_blas(const std::vector<std::v
     }
 
     // Параметры для cblas_dgemm
-    const enum CBLAS_ORDER order = CblasColMajor;
+    const enum CBLAS_ORDER order = MAJOR_LAYOUT;
     const enum CBLAS_TRANSPOSE transa = CblasNoTrans;
     const enum CBLAS_TRANSPOSE transb = CblasNoTrans;
     const int m = n;
@@ -87,25 +90,42 @@ std::vector<std::vector<double>> multiply_matrices_blas(const std::vector<std::v
 }
 
 // 3. Блочное перемножение матриц
-std::vector<std::vector<double>> multiply_matrices_blocked(const std::vector<std::vector<double>> &a, const std::vector<std::vector<double>> &b, int block_size)
-{
+std::vector<std::vector<double>> multiply_matrices_blocked(const std::vector<std::vector<double>> &a, const std::vector<std::vector<double>> &b, int block_size) {
     int n = a.size();
     std::vector<std::vector<double>> c(n, std::vector<double>(n, 0.0));
 
-    for (int i_block = 0; i_block < n; i_block += block_size)
-    {
-        for (int j_block = 0; j_block < n; j_block += block_size)
-        {
-            for (int k_block = 0; k_block < n; k_block += block_size)
-            {
-                for (int i = i_block; i < std::min(i_block + block_size, n); ++i)
-                {
-                    for (int j = j_block; j < std::min(j_block + block_size, n); ++j)
-                    {
-                        for (int k = k_block; k < std::min(k_block + block_size, n); ++k)
-                        {
-                            c[i][j] += a[i][k] * b[k][j];
+    // Предварительное выделение памяти для блоков
+    std::vector<double> a_block(block_size * block_size);
+    std::vector<double> b_block(block_size * block_size);
+
+    // Блочное умножение с копированием блоков
+    for (int i_block = 0; i_block < n; i_block += block_size) {
+        for (int k_block = 0; k_block < n; k_block += block_size) {
+
+            // 1. Копирование блока A во временный массив (a_block)
+            for (int i = 0; i < std::min(block_size, n - i_block); ++i) {
+                for (int k = 0; k < std::min(block_size, n - k_block); ++k) {
+                    a_block[i * block_size + k] = a[i_block + i][k_block + k];
+                }
+            }
+
+            for (int j_block = 0; j_block < n; j_block += block_size) {
+
+                // 2. Копирование блока B во временный массив (b_block)
+                for (int k = 0; k < std::min(block_size, n - k_block); ++k) {
+                    for (int j = 0; j < std::min(block_size, n - j_block); ++j) {
+                        b_block[k * block_size + j] = b[k_block + k][j_block + j];
+                    }
+                }
+
+                // 3. Умножение блоков
+                for (int i = 0; i < std::min(block_size, n - i_block); ++i) {
+                    for (int j = 0; j < std::min(block_size, n - j_block); ++j) {
+                        double sum = 0.0;
+                        for (int k = 0; k < std::min(block_size, n - k_block); ++k) {
+                            sum += a_block[i * block_size + k] * b_block[k * block_size + j];
                         }
+                        c[i_block + i][j_block + j] += sum;
                     }
                 }
             }
@@ -114,9 +134,32 @@ std::vector<std::vector<double>> multiply_matrices_blocked(const std::vector<std
     return c;
 }
 
+// Функция для проверки равенства матриц
+bool matrices_equal(const std::vector<std::vector<double>>& a, const std::vector<std::vector<double>>& b, double epsilon) {
+    int n = a.size();
+    if (n != b.size()) {
+        std::cerr << "Матрицы имеют разный размер" << std::endl;
+        return false;
+    }
+    for (int i = 0; i < n; ++i) {
+        if (a[i].size() != b[i].size()) {
+            std::cerr << "Матрицы имеют разный размер" << std::endl;
+            return false;
+        }
+        for (int j = 0; j < n; ++j) {
+            if (std::abs(a[i][j] - b[i][j]) > epsilon) {
+                std::cerr << "Матрицы не равны: a[" << i << "][" << j << "] = " << a[i][j] << ", b[" << i << "][" << j << "] = " << b[i][j] << std::endl;
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 int main()
 {
     int n = 1024;
+    double epsilon = 1e-6;
 
     // Генерируем случайные матрицы
     std::cout << "Generating matrices..." << std::endl;
@@ -148,7 +191,7 @@ int main()
     std::cout << "BLAS multiplication took " << time_blas << " seconds. MFlops: " << mflops_blas << std::endl;
 
     // 3. Оптимизированное перемножение матриц (блочное перемножение)
-    int block_size = 32; //  Размер блока.  Этот параметр нужно оптимизировать на вашей системе.
+    int block_size = 32; //  Размер блока
     std::cout << "Starting blocked multiplication (block size = " << block_size << ")..." << std::endl;
     start = std::chrono::high_resolution_clock::now();
     std::vector<std::vector<double>> c3 = multiply_matrices_blocked(a, b, block_size);
@@ -157,6 +200,21 @@ int main()
     double time_blocked = duration.count() / 1000000.0; // Время в секундах
     double mflops_blocked = complexity / time_blocked / 1e6;
     std::cout << "Blocked multiplication took " << time_blocked << " seconds. MFlops: " << mflops_blocked << std::endl;
+
+    // Проверка "равенства" матриц
+    std::cout << "Проверка результатов..." << std::endl;
+    bool c1_c2_equal = matrices_equal(c1, c2, epsilon);
+    bool c1_c3_equal = matrices_equal(c1, c3, epsilon);
+    bool c2_c3_equal = matrices_equal(c2, c3, epsilon);
+
+    std::cout << "c1 и c2 равны: " << (c1_c2_equal ? "Да" : "Нет") << std::endl;
+    std::cout << "c1 и c3 равны: " << (c1_c3_equal ? "Да" : "Нет") << std::endl;
+    std::cout << "c2 и c3 равны: " << (c2_c3_equal ? "Да" : "Нет") << std::endl;
+
+    // Если хотя бы одна проверка не прошла, выводим сообщение об ошибке
+    if (!c1_c2_equal || !c1_c3_equal || !c2_c3_equal) {
+        std::cerr << "Внимание: Результаты умножения матриц не совпадают!" << std::endl;
+    }
 
     std::cout << "Выполнил студент группы 090304-РПИа-о24 Шестаченко Иван Александрович";
 
