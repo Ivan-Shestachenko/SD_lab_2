@@ -45,9 +45,8 @@ std::vector<std::vector<double>> multiply_matrices_ijk(const std::vector<std::ve
 }
 
 // 2. Перемножение матриц с использованием cblas_dgemm
-std::vector<std::vector<double>> multiply_matrices_blas(const std::vector<std::vector<double>> &a, const std::vector<std::vector<double>> &b)
-{
-    int n = a.size();
+std::vector<std::vector<double>> multiply_matrices_blas(const std::vector<std::vector<double>> &a, const std::vector<std::vector<double>> &b) {
+    size_t n = a.size();
     std::vector<std::vector<double>> c(n, std::vector<double>(n, 0.0));
 
     // Преобразуем матрицы в формат, подходящий для cblas_dgemm (плоский массив, column-major order)
@@ -55,34 +54,33 @@ std::vector<std::vector<double>> multiply_matrices_blas(const std::vector<std::v
     std::vector<double> b_flat(n * n);
     std::vector<double> c_flat(n * n);
 
-    for (int i = 0; i < n; ++i)
-    {
-        for (int j = 0; j < n; ++j)
-        {
-            a_flat[j * n + i] = a[i][j]; // column-major order
-            b_flat[j * n + i] = b[i][j]; // column-major order
+    // Заполняем плоские массивы в column-major порядке
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            a_flat[j * n + i] = a[i][j];
+            b_flat[j * n + i] = b[i][j];
         }
     }
 
     // Параметры для cblas_dgemm
-    const enum CBLAS_ORDER order = MAJOR_LAYOUT;
-    const enum CBLAS_TRANSPOSE transa = CblasNoTrans;
-    const enum CBLAS_TRANSPOSE transb = CblasNoTrans;
+    const CBLAS_LAYOUT order = CblasColMajor; 
+    const CBLAS_TRANSPOSE transa = CblasNoTrans;
+    const CBLAS_TRANSPOSE transb = CblasNoTrans;
     const int m = n;
+    const int k = n;  
     const int lda = n;
     const int ldb = n;
     const int ldc = n;
     const double alpha = 1.0;
     const double beta = 0.0;
 
-    cblas_dgemm(order, transa, transb, m, m, m, alpha, a_flat.data(), lda, b_flat.data(), ldb, beta, c_flat.data(), ldc);
+    // Вызываем cblas_dgemm
+    cblas_dgemm(order, transa, transb, m, n, k, alpha, a_flat.data(), lda, b_flat.data(), ldb, beta, c_flat.data(), ldc);
 
-    // Копируем результат обратно в двумерный вектор
-    for (int i = 0; i < n; ++i)
-    {
-        for (int j = 0; j < n; ++j)
-        {
-            c[i][j] = c_flat[j * n + i]; // column-major order
+    // Копируем результат обратно в двумерный вектор (column-major)
+    for (size_t i = 0; i < n; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            c[i][j] = c_flat[j * n + i];
         }
     }
 
