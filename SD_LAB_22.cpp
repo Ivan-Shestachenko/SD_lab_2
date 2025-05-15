@@ -207,9 +207,9 @@ int main()
     bool c1_c3_equal = matrices_equal(c1, c3, epsilon);
     bool c2_c3_equal = matrices_equal(c2, c3, epsilon);
 
-    std::cout << "c1 и c2 равны: " << (c1_c2_equal ? "Да" : "Нет") << std::endl;
-    std::cout << "c1 и c3 равны: " << (c1_c3_equal ? "Да" : "Нет") << std::endl;
-    std::cout << "c2 и c3 равны: " << (c2_c3_equal ? "Да" : "Нет") << std::endl;
+    std::cout << "c1 и c2 равны: " << (c1_c2_equal ? "YES" : "NO") << std::endl;
+    std::cout << "c1 и c3 равны: " << (c1_c3_equal ? "YES" : "NO") << std::endl;
+    std::cout << "c2 и c3 равны: " << (c2_c3_equal ? "YES" : "NO") << std::endl;
 
     // Если хотя бы одна проверка не прошла, выводим сообщение об ошибке
     if (!c1_c2_equal || !c1_c3_equal || !c2_c3_equal) {
