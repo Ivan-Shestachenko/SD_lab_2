@@ -136,17 +136,17 @@ std::vector<std::vector<double>> multiply_matrices_blocked(const std::vector<std
 bool matrices_equal(const std::vector<std::vector<double>>& a, const std::vector<std::vector<double>>& b, double epsilon) {
     int n = a.size();
     if (n != b.size()) {
-        std::cerr << "Матрицы имеют разный размер" << std::endl;
+        std::cerr << "The matrices have different sizes" << std::endl;
         return false;
     }
     for (int i = 0; i < n; ++i) {
         if (a[i].size() != b[i].size()) {
-            std::cerr << "Матрицы имеют разный размер" << std::endl;
+            std::cerr << "The matrices have different sizes" << std::endl;
             return false;
         }
         for (int j = 0; j < n; ++j) {
             if (std::abs(a[i][j] - b[i][j]) > epsilon) {
-                std::cerr << "Матрицы не равны: a[" << i << "][" << j << "] = " << a[i][j] << ", b[" << i << "][" << j << "] = " << b[i][j] << std::endl;
+                std::cerr << "The matrices are not equal: a[" << i << "][" << j << "] = " << a[i][j] << ", b[" << i << "][" << j << "] = " << b[i][j] << std::endl;
                 return false;
             }
         }
@@ -200,14 +200,14 @@ int main()
     std::cout << "Blocked multiplication took " << time_blocked << " seconds. MFlops: " << mflops_blocked << std::endl;
 
     // Проверка "равенства" матриц
-    std::cout << "Проверка результатов..." << std::endl;
+    std::cout << "Checking results..." << std::endl;
     bool c1_c2_equal = matrices_equal(c1, c2, epsilon);
     bool c1_c3_equal = matrices_equal(c1, c3, epsilon);
     bool c2_c3_equal = matrices_equal(c2, c3, epsilon);
 
-    std::cout << "c1 и c2 равны: " << (c1_c2_equal ? "YES" : "NO") << std::endl;
-    std::cout << "c1 и c3 равны: " << (c1_c3_equal ? "YES" : "NO") << std::endl;
-    std::cout << "c2 и c3 равны: " << (c2_c3_equal ? "YES" : "NO") << std::endl;
+    std::cout << "c1 and c2 equal: " << (c1_c2_equal ? "YES" : "NO") << std::endl;
+    std::cout << "c1 and c3 equal: " << (c1_c3_equal ? "YES" : "NO") << std::endl;
+    std::cout << "c2 and c3 equal: " << (c2_c3_equal ? "YES" : "NO") << std::endl;
 
     // Если хотя бы одна проверка не прошла, выводим сообщение об ошибке
     if (!c1_c2_equal || !c1_c3_equal || !c2_c3_equal) {
